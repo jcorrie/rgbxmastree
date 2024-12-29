@@ -1,4 +1,4 @@
-from tree import RGBXmasTree
+from app.tree import RGBXmasTree
 import random
 
 tree = RGBXmasTree()
