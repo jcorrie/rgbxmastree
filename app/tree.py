@@ -126,16 +126,17 @@ class RGBXmasTree(SourceMixin, SPIDevice):
     @color.setter
     def color(self, c: Color) -> None:
         r, g, b = c
-        led: LEDValueBase = LEDValueBase(red=r, green=g, blue=b)
-        star: LEDValueBase = LEDValueBase.new_from_hex(hex="#FFD700")
-        leds: list[LEDValueBase] = [led] * len(self)
+        leds: list[LEDValueBase] = [
+            LEDValueBase(red=r, green=g, blue=b) for _ in range(len(self))
+        ]
+        star: LEDValueBase = LEDValueBase.new_from_hex("#FFD700")
         if self._seperate_star:
-            leds[1] = star
+            leds[3] = star
         self.value = leds
 
     @property
     def star(self) -> Pixel:
-        return self[3]
+        return self[4]
 
     @property
     def brightness(self) -> float:
@@ -162,8 +163,10 @@ class RGBXmasTree(SourceMixin, SPIDevice):
             LEDValue256.from_base(value=v, brightness=brightness) for v in value
         ]
         flattened_pixels: list[int] = [
-            i for p in pixels for i in p.model_dump().values()
+            i for p in pixels for i in (p.brightness or 0, p.blue, p.green, p.red)
         ]
+
+        print(flattened_pixels)
         data = start_of_frame + flattened_pixels + end_of_frame
         if self._spi is None:
             raise ValueError("SPI must be opened before setting value")

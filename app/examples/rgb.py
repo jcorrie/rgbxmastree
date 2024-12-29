@@ -4,12 +4,13 @@ from time import sleep
 
 tree = RGBXmasTree()
 
-colors = [Color('red'), Color('pink'), Color('blue')] # add more if you like
+colors = [Color('red'), Color('green'), Color('blue')] # add more if you like
 
 try:
     while True:
         for color in colors:
             tree.color = color
-            sleep(1)
+            sleep(3)
 except KeyboardInterrupt:
+    tree.off()
     tree.close()
