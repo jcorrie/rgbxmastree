@@ -3,19 +3,24 @@ from colorzero import Color
 from statistics import mean
 from pydantic import BaseModel
 
+from typing import TYPE_CHECKING, Iterator
 
-class LEDValueBase1(BaseModel):
+if TYPE_CHECKING:
+    from app.tree import RGBXmasTree
+
+
+class LEDValueBase(BaseModel):
     red: float
     green: float
     blue: float
 
     @staticmethod
-    def new_on() -> "LEDValueBase1":
-        return LEDValueBase1(red=1, green=1, blue=1)
+    def new_on() -> "LEDValueBase":
+        return LEDValueBase(red=1, green=1, blue=1)
 
     @staticmethod
-    def new_off() -> "LEDValueBase1":
-        return LEDValueBase1(red=0, green=0, blue=0)
+    def new_off() -> "LEDValueBase":
+        return LEDValueBase(red=0, green=0, blue=0)
 
 
 class LEDValueBase256(BaseModel):
@@ -26,7 +31,7 @@ class LEDValueBase256(BaseModel):
 
     @staticmethod
     def from_base1(
-        value: LEDValueBase1, brightness: int | None = None
+        value: LEDValueBase, brightness: int | None = None
     ) -> "LEDValueBase256":
         return LEDValueBase256(
             red=int(value.red * 255),
@@ -37,35 +42,35 @@ class LEDValueBase256(BaseModel):
 
 
 class Pixel:
-    def __init__(self, parent, index: int) -> None:
-        self.parent = parent
-        self.index = index
+    def __init__(self, parent: RGBXmasTree, index: int) -> None:
+        self.parent: RGBXmasTree = parent
+        self.index: int = index
 
     @property
-    def value(self):
+    def value(self) -> LEDValueBase:
         return self.parent.value[self.index]
 
     @value.setter
-    def value(self, value):
-        new_parent_value = list(self.parent.value)
+    def value(self, value: LEDValueBase) -> None:
+        new_parent_value: list[LEDValueBase] = self.parent.value.copy()
         new_parent_value[self.index] = value
-        self.parent.value = tuple(new_parent_value)
+        self.parent.value = new_parent_value
 
     @property
-    def color(self):
-        value: LEDValueBase1 = self.value
+    def color(self) -> Color:
+        value: LEDValueBase = self.value
         return Color(value.red, value.green, value.blue)
 
     @color.setter
-    def color(self, c: Color):
+    def color(self, c: Color) -> None:
         r, g, b = c
-        self.value = LEDValueBase1(red=r, green=g, blue=b)
+        self.value = LEDValueBase(red=r, green=g, blue=b)
 
-    def on(self):
-        self.value = LEDValueBase1.new_on()
+    def on(self) -> None:
+        self.value = LEDValueBase.new_on()
 
-    def off(self):
-        self.value = LEDValueBase1.new_off()
+    def off(self) -> None:
+        self.value = LEDValueBase.new_off()
 
 
 class RGBXmasTree(SourceMixin, SPIDevice):
@@ -84,19 +89,19 @@ class RGBXmasTree(SourceMixin, SPIDevice):
 
         self._all: list[Pixel] = [Pixel(parent=self, index=i) for i in range(pixels)]
         self.max_brightness: int = 31
-        default_led: LEDValueBase1 = LEDValueBase1(red=0, green=0, blue=0)
-        self._value: list[LEDValueBase1] = [default_led] * pixels
+        default_led: LEDValueBase = LEDValueBase(red=0, green=0, blue=0)
+        self._value: list[LEDValueBase] = [default_led] * pixels
         self._brightness: float = brightness
         self._brightness_bits: int = int(brightness * self.max_brightness)
         self.off()
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._all)
 
-    def __getitem__(self, index):
+    def __getitem__(self, index) -> Pixel:
         return self._all[index]
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Pixel]:
         return iter(self._all)
 
     @property
@@ -109,7 +114,7 @@ class RGBXmasTree(SourceMixin, SPIDevice):
     @color.setter
     def color(self, c: Color) -> None:
         r, g, b = c
-        led: LEDValueBase1 = LEDValueBase1(red=r, green=g, blue=b)
+        led: LEDValueBase = LEDValueBase(red=r, green=g, blue=b)
         self.value = [led] * len(self)
 
     @property
@@ -128,11 +133,11 @@ class RGBXmasTree(SourceMixin, SPIDevice):
         self.value = self.value
 
     @property
-    def value(self):
+    def value(self) -> list[LEDValueBase]:
         return self._value
 
     @value.setter
-    def value(self, value: list[LEDValueBase1]) -> None:
+    def value(self, value: list[LEDValueBase]) -> None:
         start_of_frame = [0] * 4
         end_of_frame = [0] * 5
         # SSSBBBBB (start, brightness)
@@ -150,10 +155,10 @@ class RGBXmasTree(SourceMixin, SPIDevice):
         self._value = value
 
     def on(self) -> None:
-        self.value = [LEDValueBase1.new_on()] * len(self)
+        self.value = [LEDValueBase.new_on()] * len(self)
 
     def off(self) -> None:
-        self.value = [LEDValueBase1.new_off()] * len(self)
+        self.value = [LEDValueBase.new_off()] * len(self)
 
     def close(self) -> None:
         super(RGBXmasTree, self).close()
