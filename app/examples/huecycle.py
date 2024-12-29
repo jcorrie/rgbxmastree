@@ -9,4 +9,5 @@ try:
     while True:
         tree.color += Hue(deg=1)
 except KeyboardInterrupt:
+    tree.off()
     tree.close()

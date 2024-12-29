@@ -4,18 +4,36 @@ from statistics import mean
 from pydantic import BaseModel
 
 
-class LEDValue(BaseModel):
-    r: float
-    g: float
-    b: float
+class LEDValueBase1(BaseModel):
+    red: float
+    green: float
+    blue: float
 
     @staticmethod
-    def new_on() -> "LEDValue":
-        return LEDValue(r=1, g=1, b=1)
+    def new_on() -> "LEDValueBase1":
+        return LEDValueBase1(red=1, green=1, blue=1)
 
     @staticmethod
-    def new_off() -> "LEDValue":
-        return LEDValue(r=0, g=0, b=0)
+    def new_off() -> "LEDValueBase1":
+        return LEDValueBase1(red=0, green=0, blue=0)
+
+
+class LEDValueBase256(BaseModel):
+    red: int
+    green: int
+    blue: int
+    brightness: int | None = None
+
+    @staticmethod
+    def from_base1(
+        value: LEDValueBase1, brightness: int | None = None
+    ) -> "LEDValueBase256":
+        return LEDValueBase256(
+            red=int(value.red * 255),
+            green=int(value.green * 255),
+            blue=int(value.blue * 255),
+            brightness=brightness,
+        )
 
 
 class Pixel:
@@ -35,18 +53,19 @@ class Pixel:
 
     @property
     def color(self):
-        return Color(*self.value)
+        value: LEDValueBase1 = self.value
+        return Color(value.red, value.green, value.blue)
 
     @color.setter
     def color(self, c: Color):
         r, g, b = c
-        self.value = (r, g, b)
+        self.value = LEDValueBase1(red=r, green=g, blue=b)
 
     def on(self):
-        self.value = (1, 1, 1)
+        self.value = LEDValueBase1.new_on()
 
     def off(self):
-        self.value = (0, 0, 0)
+        self.value = LEDValueBase1.new_off()
 
 
 class RGBXmasTree(SourceMixin, SPIDevice):
@@ -65,8 +84,8 @@ class RGBXmasTree(SourceMixin, SPIDevice):
 
         self._all: list[Pixel] = [Pixel(parent=self, index=i) for i in range(pixels)]
         self.max_brightness: int = 31
-        default_led: LEDValue = LEDValue(r=0, g=0, b=0)
-        self._value: list[LEDValue] = [default_led] * pixels
+        default_led: LEDValueBase1 = LEDValueBase1(red=0, green=0, blue=0)
+        self._value: list[LEDValueBase1] = [default_led] * pixels
         self._brightness: float = brightness
         self._brightness_bits: int = int(brightness * self.max_brightness)
         self.off()
@@ -81,16 +100,16 @@ class RGBXmasTree(SourceMixin, SPIDevice):
         return iter(self._all)
 
     @property
-    def color(self):
-        average_r = mean(pixel.color[0] for pixel in self)
-        average_g = mean(pixel.color[1] for pixel in self)
-        average_b = mean(pixel.color[2] for pixel in self)
+    def color(self) -> Color:
+        average_r: float = mean(pixel.color.red for pixel in self)
+        average_g: float = mean(pixel.color.green for pixel in self)
+        average_b: float = mean(pixel.color.blue for pixel in self)
         return Color(average_r, average_g, average_b)
 
     @color.setter
     def color(self, c: Color) -> None:
         r, g, b = c
-        led: LEDValue = LEDValue(r=r, g=g, b=b)
+        led: LEDValueBase1 = LEDValueBase1(red=r, green=g, blue=b)
         self.value = [led] * len(self)
 
     @property
@@ -113,25 +132,28 @@ class RGBXmasTree(SourceMixin, SPIDevice):
         return self._value
 
     @value.setter
-    def value(self, value: list[LEDValue]) -> None:
+    def value(self, value: list[LEDValueBase1]) -> None:
         start_of_frame = [0] * 4
         end_of_frame = [0] * 5
         # SSSBBBBB (start, brightness)
         brightness = 0b11100000 | self._brightness_bits
-        pixels = [[(255 * int(v)) for v in p] for p in value]
-        pixels = [[brightness, b, g, r] for r, g, b in pixels]
-        pixels = [i for p in pixels for i in p]
-        data = start_of_frame + pixels + end_of_frame
+        pixels: list[LEDValueBase256] = [
+            LEDValueBase256.from_base1(value=v, brightness=brightness) for v in value
+        ]
+        flattened_pixels: list[int] = [
+            i for p in pixels for i in p.model_dump().values()
+        ]
+        data = start_of_frame + flattened_pixels + end_of_frame
         if self._spi is None:
             raise ValueError("SPI must be opened before setting value")
         self._spi.transfer(data)
         self._value = value
 
     def on(self) -> None:
-        self.value = [LEDValue.new_on()] * len(self)
+        self.value = [LEDValueBase1.new_on()] * len(self)
 
     def off(self) -> None:
-        self.value = [LEDValue.new_off()] * len(self)
+        self.value = [LEDValueBase1.new_off()] * len(self)
 
     def close(self) -> None:
         super(RGBXmasTree, self).close()
