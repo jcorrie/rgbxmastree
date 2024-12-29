@@ -3,13 +3,14 @@ from colorzero import Color
 from statistics import mean
 from pydantic import BaseModel
 
-from typing import TYPE_CHECKING, Iterator
-
-if TYPE_CHECKING:
-    from app.tree import RGBXmasTree
+from typing import Iterator
 
 
 class LEDValueBase(BaseModel):
+    """
+    Base class for LED values.
+    """
+
     red: float
     green: float
     blue: float
@@ -22,18 +23,27 @@ class LEDValueBase(BaseModel):
     def new_off() -> "LEDValueBase":
         return LEDValueBase(red=0, green=0, blue=0)
 
+    @staticmethod
+    def new_from_hex(hex: str) -> "LEDValueBase":
+        r: int = int(hex[1:3], 16)
+        g: int = int(hex[3:5], 16)
+        b: int = int(hex[5:7], 16)
+        return LEDValueBase(red=r / 255, green=g / 255, blue=b / 255)
 
-class LEDValueBase256(BaseModel):
+
+class LEDValue256(BaseModel):
+    """
+    Class for LED values in 256-bit format.
+    """
+
     red: int
     green: int
     blue: int
     brightness: int | None = None
 
     @staticmethod
-    def from_base1(
-        value: LEDValueBase, brightness: int | None = None
-    ) -> "LEDValueBase256":
-        return LEDValueBase256(
+    def from_base(value: LEDValueBase, brightness: int | None = None) -> "LEDValue256":
+        return LEDValue256(
             red=int(value.red * 255),
             green=int(value.green * 255),
             blue=int(value.blue * 255),
@@ -42,7 +52,7 @@ class LEDValueBase256(BaseModel):
 
 
 class Pixel:
-    def __init__(self, parent: RGBXmasTree, index: int) -> None:
+    def __init__(self, parent: "RGBXmasTree", index: int) -> None:
         self.parent: RGBXmasTree = parent
         self.index: int = index
 
@@ -80,6 +90,7 @@ class RGBXmasTree(SourceMixin, SPIDevice):
         brightness: float = 0.5,
         mosi_pin: int = 12,
         clock_pin: int = 25,
+        seperate_star: bool = True,
         *args,
         **kwargs,
     ) -> None:
@@ -93,6 +104,7 @@ class RGBXmasTree(SourceMixin, SPIDevice):
         self._value: list[LEDValueBase] = [default_led] * pixels
         self._brightness: float = brightness
         self._brightness_bits: int = int(brightness * self.max_brightness)
+        self._seperate_star: bool = seperate_star
         self.off()
 
     def __len__(self) -> int:
@@ -115,7 +127,11 @@ class RGBXmasTree(SourceMixin, SPIDevice):
     def color(self, c: Color) -> None:
         r, g, b = c
         led: LEDValueBase = LEDValueBase(red=r, green=g, blue=b)
-        self.value = [led] * len(self)
+        star: LEDValueBase = LEDValueBase.new_from_hex(hex="#FFD700")
+        leds: list[LEDValueBase] = [led] * len(self)
+        if self._seperate_star:
+            leds[1] = star
+        self.value = leds
 
     @property
     def star(self) -> Pixel:
@@ -142,8 +158,8 @@ class RGBXmasTree(SourceMixin, SPIDevice):
         end_of_frame = [0] * 5
         # SSSBBBBB (start, brightness)
         brightness = 0b11100000 | self._brightness_bits
-        pixels: list[LEDValueBase256] = [
-            LEDValueBase256.from_base1(value=v, brightness=brightness) for v in value
+        pixels: list[LEDValue256] = [
+            LEDValue256.from_base(value=v, brightness=brightness) for v in value
         ]
         flattened_pixels: list[int] = [
             i for p in pixels for i in p.model_dump().values()
@@ -155,7 +171,7 @@ class RGBXmasTree(SourceMixin, SPIDevice):
         self._value = value
 
     def on(self) -> None:
-        self.value = [LEDValueBase.new_on()] * len(self)
+        self.value = [LEDValueBase.new_off()] * len(self)
 
     def off(self) -> None:
         self.value = [LEDValueBase.new_off()] * len(self)
