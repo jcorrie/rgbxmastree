@@ -126,7 +126,7 @@ class Pixel:
         return new_brightness
 
 
-class RGBXmasTree(SourceMixin, SPIDevice):
+class RGBXmasTree(SPIDevice):
     def __init__(
         self,
         pixels: int = 25,
@@ -202,6 +202,7 @@ class RGBXmasTree(SourceMixin, SPIDevice):
         ]
 
         data = start_of_frame + flattened_pixels + end_of_frame
+        print(data)
         if self._spi is None:
             raise ValueError("SPI must be opened before setting value")
         self._spi.transfer(data)
