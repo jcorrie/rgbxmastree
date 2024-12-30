@@ -42,7 +42,8 @@ class Light:
         self.state = ColorBrightness(
             red=0, green=0, blue=0, brightness=1.0
         )  # Default state
-        self.effect_task: asyncio.Task | None = None
+        self.glow_effect_task: asyncio.Task | None = None
+        self.hue_effect_task: asyncio.Task | None = None
 
     def set_state(self, color: Color, brightness: float) -> None:
         """Set the color and brightness of the light."""
@@ -99,16 +100,27 @@ class Light:
                     self.state = color_brightness
                     await asyncio.sleep(duration / 100)
 
-    def start_effect(self, effect_coro) -> None:
+    def start_glow_effect(self, effect_coro) -> None:
         """Start an effect coroutine."""
-        self.stop_effect()  # Stop any ongoing effect first
-        self.effect_task = asyncio.create_task(effect_coro)
+        self.stop_glow_effect()  # Stop any ongoing effect first
+        self.glow_effect_task = asyncio.create_task(effect_coro)
 
-    def stop_effect(self) -> None:
+    def stop_glow_effect(self) -> None:
         """Stop any ongoing effect."""
-        if self.effect_task:
-            self.effect_task.cancel()
-            self.effect_task = None
+        if self.glow_effect_task:
+            self.glow_effect_task.cancel()
+            self.glow_effect_task = None
+
+    def start_hue_effect(self, effect_coro) -> None:
+        """Start an effect coroutine."""
+        self.stop_hue_effect()
+        self.glow_effect_task = asyncio.create_task(effect_coro)
+
+    def stop_hue_effect(self) -> None:
+        """Stop any ongoing effect."""
+        if self.hue_effect_task:
+            self.hue_effect_task.cancel()
+            self.hue_effect_taskk = None
 
     def get_state(self) -> ColorBrightness:
         """Get the current state of the light."""
@@ -237,14 +249,14 @@ class LEDTree(SPIDevice):
         if light_id is None:
             for light in self.lights:
                 if light.id != 3 or not self.implement_star:
-                    light.start_effect(
+                    light.start_glow_effect(
                         light.glow(min_brightness, max_brightness, duration)
                     )
-                    if offset_ms:
-                        await asyncio.sleep(offset_ms / 1000)
         else:
             light = self._get_light(light_id)
-            light.start_effect(light.glow(min_brightness, max_brightness, duration))
+            light.start_glow_effect(
+                light.glow(min_brightness, max_brightness, duration)
+            )
 
     async def start_hue_effect(
         self, colors: List[Color], duration: float, light_id: int | None = None
@@ -253,14 +265,15 @@ class LEDTree(SPIDevice):
         if light_id is None:
             for light in self.lights:
                 if light.id != 3 or not self.implement_star:
-                    light.start_effect(light.hue(colors, duration))
+                    light.start_hue_effect(light.hue(colors, duration))
         else:
             light = self._get_light(light_id)
-            light.start_effect(light.hue(colors, duration))
+            light.start_hue_effect(light.hue(colors, duration))
 
     def stop_light_effect(self, light_id: int) -> None:
         """Stop any effect running on a specific light."""
-        self._get_light(light_id).stop_effect()
+        self._get_light(light_id).stop_glow_effect()
+        self._get_light(light_id).stop_hue_effect()
 
     def get_tree_state(self) -> List[ColorBrightness]:
         """Get the current state of all lights."""
