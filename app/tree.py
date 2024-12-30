@@ -167,7 +167,7 @@ class LEDValue256(BaseModel):
 class LEDTree(SPIDevice):
     """Represents the LED Christmas tree."""
 
-    def __init__(self, num_lights: int = 24, device_refresh_rate: int = 120):
+    def __init__(self, num_lights: int = 24, device_refresh_rate: int = 600):
         super(LEDTree, self).__init__(mosi_pin=12, clock_pin=25)
 
         self.lights = [Light(i) for i in range(num_lights)]
@@ -245,6 +245,7 @@ class LEDTree(SPIDevice):
         duration: float,
         light_id: int | None = None,
         offset_ms: int | None = None,
+        offset_is_randomised: bool = False,
     ) -> None:
         """Start a glow effect on a specific light."""
         if light_id is None:
@@ -254,8 +255,11 @@ class LEDTree(SPIDevice):
                         light.glow(min_brightness, max_brightness, duration)
                     )
                     if offset_ms:
-                        randomised_offset = random.randint(0, offset_ms)
-                        await asyncio.sleep(randomised_offset / 1000)
+                        if offset_is_randomised:
+                            randomised_offset = random.randint(0, offset_ms)
+                            await asyncio.sleep(randomised_offset / 1000)
+                        else:
+                            await asyncio.sleep(offset_ms / 1000)
         else:
             light = self._get_light(light_id)
             light.start_glow_effect(
@@ -268,6 +272,7 @@ class LEDTree(SPIDevice):
         duration: float,
         light_id: int | None = None,
         offset_ms: int | None = None,
+        offset_is_randomised: bool = False,
     ) -> None:
         """Start a hue effect on a specific light."""
         if light_id is None:
@@ -275,8 +280,11 @@ class LEDTree(SPIDevice):
                 if light.id != 3 or not self.implement_star:
                     light.start_hue_effect(light.hue(colors, duration))
                     if offset_ms:
-                        randomised_offset = random.randint(0, offset_ms)
-                        await asyncio.sleep(randomised_offset / 1000)
+                        if offset_is_randomised:
+                            randomised_offset = random.randint(0, offset_ms)
+                            await asyncio.sleep(randomised_offset / 1000)
+                        else:
+                            await asyncio.sleep(offset_ms / 1000)
         else:
             light = self._get_light(light_id)
             light.start_hue_effect(light.hue(colors, duration))

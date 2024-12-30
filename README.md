@@ -1,6 +1,14 @@
 # rgbxmastree
 
-Code examples for the RGB Xmas Tree
+Code examples for the RGB Xmas Tree.
+
+This repo is based on the code produced by [Pi-Hut](https://github.com/ThePiHut/rgbxmastree/). The principle difference is that the [tree.py](/app/tree.py) in this repo separates the virtual representation of the tree (as it is stored in memory) from the data that is transferred to the tree device.
+
+This implementation is achieved by running a separate thread, which samplese the virtual representation of the tree at a set frequency (eg, 60hz) 
+
+The [app/depr](/app/depr) folder contains some code based on the original Pi-Hut, except that that the main [tree.py](/app/depr/tree.py) has had types added to it (and some of the examples have been tinkered with).
+
+
 
 ## Getting started
 

@@ -8,25 +8,25 @@ async def main():
 
     # Start effects
     await tree.start_glow_effect(
-        min_brightness=0.15,
-        max_brightness=0.2,
-        duration=7.5,
-        offset_ms=350,
+        min_brightness=0.2,
+        max_brightness=0.45,
+        duration=1,
+        offset_ms=250,
         offset_is_randomised=True,
     )
 
     await tree.start_hue_effect(
-        colors=[Color("green"), Color("blue"), Color("red")],
-        duration=6.5,
-        offset_ms=200,
+        colors=[Color("indigo"), Color("hotpink"), Color("red")],
+        duration=1.1,
+        offset_ms=275,
         offset_is_randomised=True,
     )
 
+    await tree.start_hue_effect(
+        colors=[Color("pink"), Color("fuchsia"), Color("midnightblue")], duration=4, light_id=3
+    )
     await tree.start_glow_effect(
-        min_brightness=0.2, max_brightness=0.5, duration=6, light_id=3
-    )
-    await tree.start_hue_effect(
-        colors=[Color("gold"), Color("orange")], duration=4, light_id=3
+        min_brightness=0.1, max_brightness=0.6, duration=0.4, light_id=3
     )
 
     try:
