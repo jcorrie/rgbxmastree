@@ -1,4 +1,4 @@
-from app.tree import RGBXmasTree
+from app.depr.tree import RGBXmasTree
 from colorzero import Color
 from time import sleep
 
