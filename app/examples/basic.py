@@ -6,16 +6,6 @@ import asyncio
 async def main():
     tree = LEDTree()
 
-    # Start effects
-    await tree.start_glow_effect(
-        min_brightness=0.15, max_brightness=0.2, duration=7.5, offset_ms=350
-    )
-
-    await tree.start_hue_effect(
-        colors=[Color("green"), Color("blue"), Color("red")],
-        duration=6.5,
-        offset_ms=200,
-    )
 
     await tree.start_glow_effect(
         min_brightness=0.2, max_brightness=0.5, duration=9.5, light_id=3
@@ -23,6 +13,7 @@ async def main():
     await tree.start_hue_effect(
         colors=[Color("gold"), Color("orange")], duration=4, light_id=3
     )
+
 
     try:
         # Run indefinitely until keyboard interrupt

@@ -1,4 +1,4 @@
-from gpiozero import SPIDevice, SourceMixin
+from gpiozero import SPIDevice
 from colorzero import Color
 import random
 from statistics import mean

@@ -3,13 +3,14 @@ import threading
 import time
 from typing import List, Tuple
 from colorzero import Color, RGB
+import random
 from pydantic import BaseModel, Field
 
 from gpiozero import SPIDevice
 
 MAX_BRIGHTNESS: int = 31
 
-DEFAULT_BRIGHTNESS: float = 0.3
+DEFAULT_BRIGHTNESS: float = 0.1
 
 
 class ColorBrightness(BaseModel):
@@ -184,7 +185,7 @@ class LEDTree(SPIDevice):
 
     def set_default_state(self) -> None:
         # Set the default state of the tree
-        self.set_all_lights(Color("green"), 0.3)
+        self.set_all_lights(Color("green"), DEFAULT_BRIGHTNESS)
         if self.implement_star:
             self.star.set_as_star()
 
@@ -243,7 +244,7 @@ class LEDTree(SPIDevice):
         max_brightness: float,
         duration: float,
         light_id: int | None = None,
-        offset_ms: int = 150,
+        offset_ms: int | None = None,
     ) -> None:
         """Start a glow effect on a specific light."""
         if light_id is None:
@@ -252,6 +253,9 @@ class LEDTree(SPIDevice):
                     light.start_glow_effect(
                         light.glow(min_brightness, max_brightness, duration)
                     )
+                    if offset_ms:
+                        randomised_offset = random.randint(0, offset_ms)
+                        await asyncio.sleep(randomised_offset / 1000)
         else:
             light = self._get_light(light_id)
             light.start_glow_effect(
@@ -259,13 +263,20 @@ class LEDTree(SPIDevice):
             )
 
     async def start_hue_effect(
-        self, colors: List[Color], duration: float, light_id: int | None = None
+        self,
+        colors: List[Color],
+        duration: float,
+        light_id: int | None = None,
+        offset_ms: int | None = None,
     ) -> None:
         """Start a hue effect on a specific light."""
         if light_id is None:
             for light in self.lights:
                 if light.id != 3 or not self.implement_star:
                     light.start_hue_effect(light.hue(colors, duration))
+                    if offset_ms:
+                        randomised_offset = random.randint(0, offset_ms)
+                        await asyncio.sleep(randomised_offset / 1000)
         else:
             light = self._get_light(light_id)
             light.start_hue_effect(light.hue(colors, duration))
