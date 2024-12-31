@@ -8,7 +8,7 @@ async def main():
 
 
     await tree.start_glow_effect(
-        min_brightness=0.2, max_brightness=0.5, duration=6, light_id=3
+        min_brightness=0.1, max_brightness=0.5, duration=3, light_id=3
     )
     await tree.start_hue_effect(
         colors=[Color("gold"), Color("orange")], duration=4, light_id=3

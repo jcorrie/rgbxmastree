@@ -46,6 +46,12 @@ class Light:
         self.glow_effect_task: asyncio.Task | None = None
         self.hue_effect_task: asyncio.Task | None = None
 
+    def __str__(self) -> str:
+        return f"Light {self.id}"
+
+    def __repr__(self) -> str:
+        return f"Light {self.id}"
+
     def set_state(self, color: Color, brightness: float) -> None:
         """Set the color and brightness of the light."""
         self.state = ColorBrightness.from_color(color, brightness)
@@ -131,7 +137,7 @@ class Light:
         self.state = ColorBrightness(red=0, green=0, blue=0, brightness=0.0)
 
     def set_as_star(self) -> None:
-        color = Color("yellow")
+        color = Color("gold")
         self.state = ColorBrightness.from_color(color, DEFAULT_BRIGHTNESS)
 
 
@@ -175,9 +181,11 @@ class LEDTree(SPIDevice):
         self.device_thread = threading.Thread(
             target=self._spi_transfer_loop, daemon=True
         )
+        self.star: Light = self.lights[3]
         self.device_running = False
         self.implement_star: bool = True
-        self.star: Light = self.lights[3]
+
+        print(self.lights)
 
         self.set_default_state()
 
@@ -235,8 +243,10 @@ class LEDTree(SPIDevice):
     def set_all_lights(self, color: Color, brightness: float) -> None:
         """Set the color and brightness for all lights."""
         for light in self.lights:
-            if light.id != 3 or not self.implement_star:
-                light.set_state(color, brightness)
+            if light.id == 3 and self.implement_star:
+                continue
+            light = self._get_light(light.id)
+            light.set_state(color, brightness)
 
     async def start_glow_effect(
         self,
@@ -250,16 +260,18 @@ class LEDTree(SPIDevice):
         """Start a glow effect on a specific light."""
         if light_id is None:
             for light in self.lights:
-                if light.id != 3 or not self.implement_star:
-                    light.start_glow_effect(
-                        light.glow(min_brightness, max_brightness, duration)
-                    )
-                    if offset_ms:
-                        if offset_is_randomised:
-                            randomised_offset = random.randint(0, offset_ms)
-                            await asyncio.sleep(randomised_offset / 1000)
-                        else:
-                            await asyncio.sleep(offset_ms / 1000)
+                if light.id == 3 and self.implement_star:
+                    continue
+                light = self._get_light(light.id)
+                light.start_glow_effect(
+                    light.glow(min_brightness, max_brightness, duration)
+                )
+                if offset_ms:
+                    if offset_is_randomised:
+                        randomised_offset = random.randint(0, offset_ms)
+                        await asyncio.sleep(randomised_offset / 1000)
+                    else:
+                        await asyncio.sleep(offset_ms / 1000)
         else:
             light = self._get_light(light_id)
             light.start_glow_effect(
@@ -277,14 +289,16 @@ class LEDTree(SPIDevice):
         """Start a hue effect on a specific light."""
         if light_id is None:
             for light in self.lights:
-                if light.id != 3 or not self.implement_star:
-                    light.start_hue_effect(light.hue(colors, duration))
-                    if offset_ms:
-                        if offset_is_randomised:
-                            randomised_offset = random.randint(0, offset_ms)
-                            await asyncio.sleep(randomised_offset / 1000)
-                        else:
-                            await asyncio.sleep(offset_ms / 1000)
+                if light.id == 3 and self.implement_star:
+                    continue
+                light = self._get_light(light.id)
+                light.start_hue_effect(light.hue(colors, duration))
+                if offset_ms:
+                    if offset_is_randomised:
+                        randomised_offset = random.randint(0, offset_ms)
+                        await asyncio.sleep(randomised_offset / 1000)
+                    else:
+                        await asyncio.sleep(offset_ms / 1000)
         else:
             light = self._get_light(light_id)
             light.start_hue_effect(light.hue(colors, duration))
@@ -300,11 +314,12 @@ class LEDTree(SPIDevice):
 
     def _get_light(self, light_id: int) -> Light:
         """Retrieve a light by its ID."""
-        if 0 <= light_id < len(self.lights):
-            return self.lights[light_id]
-        raise ValueError(
-            f"Light ID {light_id} is out of range (0-{len(self.lights) - 1})."
-        )
+        # Needs to work on a filter using the light ID
+        light: list[Light] = [light for light in self.lights if light.id == light_id]
+        if len(light) == 1:
+            return light[0]
+        else:
+            raise ValueError(f"Light ID {light_id} not found.")
 
     def lights_off(self) -> None:
         """
