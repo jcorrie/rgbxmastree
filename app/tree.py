@@ -167,12 +167,12 @@ class LEDValue256(BaseModel):
 class LEDTree(SPIDevice):
     """Represents the LED Christmas tree."""
 
-    def __init__(self, num_lights: int = 24, device_refresh_rate: int = 600):
+    def __init__(self, num_lights: int = 24, device_refresh_rate: int = 120):
         super(LEDTree, self).__init__(mosi_pin=12, clock_pin=25)
 
         self.lights = [Light(i) for i in range(num_lights)]
         self.device_refresh_rate = device_refresh_rate
-        self.device_thred = threading.Thread(
+        self.device_thread = threading.Thread(
             target=self._spi_transfer_loop, daemon=True
         )
         self.device_running = False
@@ -192,7 +192,7 @@ class LEDTree(SPIDevice):
     def start_spi(self) -> None:
         """Start the SPI transfer loop."""
         self.device_running = True
-        self.device_thred.start()
+        self.device_thread.start()
 
     def shutdown(self) -> None:
         """Stop the SPI transfer loop."""
@@ -202,7 +202,7 @@ class LEDTree(SPIDevice):
         time.sleep(0.2)
 
         self.device_running = False
-        self.device_thred.join()
+        self.device_thread.join()
 
     def _spi_transfer_loop(self) -> None:
         """Run the SPI transfer loop."""
